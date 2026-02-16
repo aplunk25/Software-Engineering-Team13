@@ -12,7 +12,8 @@ echo ""
 
 # 1) System packages (Python + venv + Postgres)
 sudo apt update
-sudo apt install -y python3 python3-pip python3-venv postgresql postgresql-contrib
+sudo apt install -y python3.11 python3.11-venv python3.11-distutils python3-pip postgresql postgresql-contrib
+
 
 # 2) Start + enable Postgres
 sudo systemctl enable postgresql
@@ -42,7 +43,7 @@ SQL
 mkdir -p "$PROJECT_DIR"
 
 if [ ! -d "$VENV_DIR" ]; then
-  python3 -m venv "$VENV_DIR"
+  python3.11 -m venv "$VENV_DIR"
 fi
 
 # 5) Install Python deps into venv (NOT globally)

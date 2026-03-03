@@ -32,10 +32,14 @@ print("UDP server up and listening")
 while (True):
 
     bytesAddressPair = UDPServerSocket.recvfrom(bufferSize)
-    message = bytesAddressPair[0]
+    message_bytes = bytesAddressPair[0]
     address = bytesAddressPair[1]
-    clientMsg = "Message from Client:{}".format(message)
-    clientIP = "Client IP Address:{}".format(address)
+    
+    # Decode bytes to string
+    message = message_bytes.decode()
+    
+    clientMsg = "Hardware ID: {}".format(message)
+    clientIP = "Client IP Address: {}".format(address)
 
     print(clientMsg)
     print(clientIP)

@@ -10,6 +10,7 @@ import json
 import os
 import psycopg2
 from psycopg2 import sql
+from UDP_Client import send_packet 
 
 
 class Team:
@@ -144,6 +145,10 @@ class EntryTerminal:
         try:
             self._db_upsert(pid, code)
             checkbox_var.set(True)
+            
+            # Broadcast the equipment ID to clients
+            send_packet(str(pid))  # convert to string as expected by UDP client
+            
         except Exception as e:
             messagebox.showerror("DB Error", str(e))
 

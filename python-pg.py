@@ -1,6 +1,6 @@
 import psycopg2
 from psycopg2 import sql
-from UDP_Client import select_network, send_packet 
+import UDP_Client
 from splashscreen import SplashScreen 
 from player_entry import entry_terminal
 
@@ -145,9 +145,10 @@ def read_int(prompt: str) -> int:
         conn.close()
 def run_app():
     try:
+		
         # connect to server network
-        server_addr = select_network()
-        print("Using UDP server:", server_addr)
+        UDP_Client.configure_server()
+        print("Using UDP server:", UDP_Client.SERVER_ADDRESS)
 
         # Connect to PostgreSQL
         conn = psycopg2.connect(**connection_params)

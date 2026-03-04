@@ -1,4 +1,4 @@
-# Sofware-Engineering-Team13
+# Software-Engineering-Team13
 Team 13 Repo for Software Engineering Spring 2026
 Aplunk25 | Alex Plunk 
 Jortiz2003 | Jose Ortiz

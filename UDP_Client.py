@@ -14,6 +14,16 @@ import socket
 
 SERVER_ADDRESS = None
 
+# Create a UDP socket at client side (socket() is a class from socket module, creates object)
+
+UDPClientSocket = socket.socket(
+
+family=socket.AF_INET, type=socket.SOCK_DGRAM) #Creates single socket for entire program
+
+# enable broadcasts
+
+UDPClientSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
 
 # Function to select a server network
 
@@ -92,16 +102,6 @@ def send_packet(data):
     # Defines the buffer size at 1KB or 1024 bytes
 
     bufferSize = 1024
-
-    # Create a UDP socket at client side (socket() is a class from socket module, creates object)
-
-    UDPClientSocket = socket.socket(
-
-        family=socket.AF_INET, type=socket.SOCK_DGRAM)
-
-    # enable broadcasts
-
-    UDPClientSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     # Send to server using created UDP socket
 

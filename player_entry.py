@@ -147,7 +147,7 @@ class EntryTerminal:
             checkbox_var.set(True)
             
             # Broadcast the equipment ID to clients
-            send_packet(str(pid))  # convert to string as expected by UDP client
+            #send_packet(str(pid))  # convert to string as expected by UDP client
             
         except Exception as e:
             messagebox.showerror("DB Error", str(e))

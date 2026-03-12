@@ -8,6 +8,7 @@
 # Importations
 
 import socket
+import atexit
 
 
 # Global variable to store server address
@@ -97,7 +98,8 @@ def send_packet(data):
 
     # Encode the message to bytes!
 
-    bytesToSend = str.encode(msgFromClient)
+    #bytesToSend = str.encode(msgFromClient)
+    bytesToSend = str(msgFromClient).encode()
 
     # Defines the buffer size at 1KB or 1024 bytes
 
@@ -109,7 +111,8 @@ def send_packet(data):
 
     # Receive response from server
 
-    msgFromServer = UDPClientSocket.recvfrom(bufferSize)
+    msgFromServer = UDPClientSocket.recvfrom(bufferSize)  #[0] is network, [1] is port
+    server_sender_port = msgFromServer[1]
 
     # decode the bytes to a normal string
     msg_decoded = msgFromServer[0].decode()
@@ -121,4 +124,8 @@ def send_packet(data):
 
     print(msg)
 
-    print("Server address port:  ", SERVER_ADDRESS[1])
+    print("Server received from port:  ", SERVER_ADDRESS[1])
+    print("Server sender port: ", server_sender_port)
+    
+# Close the socket automatically on program exit
+atexit.register(UDPClientSocket.close)

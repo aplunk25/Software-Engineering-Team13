@@ -5,30 +5,33 @@ Two teams with ID Number and Codename columns
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 import json
 import os
 import psycopg2
 from psycopg2 import sql
-from UDP_Client import send_packet 
+from UDP_Client import send_packet
+from Countdown_timer import CountdownTimer
 
 
 class Team:
     def __init__(self, name: str, color: str, max_players: int = 20):
         self.name = name
         self.color = color
-        self.players = [["", ""] for _ in range(max_players)]  # [id_number, codename] pairs
-        
+        # [id_number, codename] pairs
+        self.players = [["", ""] for _ in range(max_players)]
+
     def add_player(self, index: int, id_number: str, codename: str = ""):
         if 0 <= index < len(self.players):
             self.players[index] = [id_number, codename]
-            
+
     def remove_player(self, index: int):
         if 0 <= index < len(self.players):
             self.players[index] = ["", ""]
-            
+
     def get_player_count(self):
         return sum(1 for p in self.players if p[0])
+
 
 class EntryTerminal:
     def __init__(self, root, pg_config):
@@ -36,9 +39,8 @@ class EntryTerminal:
         self.root.title("Entry Terminal")
         self.root.geometry("1200x800")
         self.root.configure(bg="#1a1a2e")
+        self.hardware_id = tk.StringVar()  # store hardware ID input
 
-        
-        
         self.pg_config = dict(pg_config)   # copy from python-pg.py
         # Fill in defaults if python-pg.py omits them
         self.pg_config.setdefault('host', 'localhost')
@@ -47,27 +49,26 @@ class EntryTerminal:
         self.id_column = "id"
         self.codename_column = "codename"
         self._ensure_table()
-            
-        
+
         # Teams
         self.teams = [
             Team("RED TEAM", "#8B0000", 20),
             Team("GREEN TEAM", "#006400", 20)
         ]
-        
+
         # Current selection
         self.current_team = 0
         self.current_slot = 0
         self.current_column = 0
-        
+
         # Game mode
         self.game_mode = "Standard public mode"
-        
+
         # Entry widgets storage
-        self.entry_widgets = {0: [], 1: []}  # team_idx -> list of (id_entry, codename_entry, row_frame)
-        
+        # team_idx -> list of (id_entry, codename_entry, row_frame)
+        self.entry_widgets = {0: [], 1: []}
+
         self.create_ui()
-        
 
     def _ensure_table(self):
         """Create the players table if it doesn't exist."""
@@ -126,7 +127,8 @@ class EntryTerminal:
             return
 
         if not id_str.isdigit():
-            messagebox.showerror("Input Error", "Equipment ID must be numeric.")
+            messagebox.showerror(
+                "Input Error", "Equipment ID must be numeric.")
             return
 
         pid = int(id_str)
@@ -142,13 +144,14 @@ class EntryTerminal:
             # still empty -> don't write junk row
             return
 
+        # If both boxes are filled, prompt for hardware ID
+        if checkbox_var.get() and id_str and code:
+            self.create_hardware_id_popup()
+
         try:
             self._db_upsert(pid, code)
             checkbox_var.set(True)
-            
-            # Broadcast the equipment ID to clients
-            #send_packet(str(pid))  # convert to string as expected by UDP client
-            
+
         except Exception as e:
             messagebox.showerror("DB Error", str(e))
 
@@ -157,7 +160,7 @@ class EntryTerminal:
         title_frame = tk.Frame(self.root, bg="#1a1a2e", height=80)
         title_frame.pack(fill=tk.X, pady=(10, 0))
         title_frame.pack_propagate(False)
-        
+
         subtitle_label = tk.Label(
             title_frame,
             text="Edit Current Game",
@@ -166,29 +169,29 @@ class EntryTerminal:
             fg="#00bfff"
         )
         subtitle_label.pack()
-        
+
         # Main content frame
         content_frame = tk.Frame(self.root, bg="#1a1a2e")
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-        
+
         # Create two team panels
         for team_idx in range(2):
             team_frame = tk.Frame(content_frame, bg="#1a1a2e")
             team_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
-            
+
             self.create_team_panel(team_frame, team_idx)
-        
+
         # Footer
         self.create_footer()
-        
+
     def create_team_panel(self, parent, team_idx):
         team = self.teams[team_idx]
-        
+
         # Team header
         header_frame = tk.Frame(parent, bg=team.color, height=40)
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
-        
+
         header_label = tk.Label(
             header_frame,
             text=team.name,
@@ -197,11 +200,11 @@ class EntryTerminal:
             fg="white"
         )
         header_label.pack(expand=True)
-        
+
         # Column headers
         col_header_frame = tk.Frame(parent, bg="#2a2a3e")
         col_header_frame.pack(fill=tk.X, pady=(5, 0))
-        
+
         tk.Label(
             col_header_frame,
             text="",
@@ -210,7 +213,7 @@ class EntryTerminal:
             bg="#2a2a3e",
             fg="white"
         ).pack(side=tk.LEFT, padx=2)
-        
+
         tk.Label(
             col_header_frame,
             text="ID Number",
@@ -220,7 +223,7 @@ class EntryTerminal:
             fg="white",
             anchor=tk.W
         ).pack(side=tk.LEFT, padx=2)
-        
+
         tk.Label(
             col_header_frame,
             text="Codename",
@@ -230,41 +233,43 @@ class EntryTerminal:
             fg="white",
             anchor=tk.W
         ).pack(side=tk.LEFT, padx=2)
-        
+
         # Scrollable roster frame
         roster_container = tk.Frame(parent, bg="#1a1a2e")
         roster_container.pack(fill=tk.BOTH, expand=True, pady=5)
-        
+
         # Canvas and scrollbar
-        canvas = tk.Canvas(roster_container, bg="#1a1a2e", highlightthickness=0)
-        scrollbar = ttk.Scrollbar(roster_container, orient=tk.VERTICAL, command=canvas.yview)
+        canvas = tk.Canvas(roster_container, bg="#1a1a2e",
+                           highlightthickness=0)
+        scrollbar = ttk.Scrollbar(
+            roster_container, orient=tk.VERTICAL, command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg="#1a1a2e")
-        
+
         scrollable_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
-        
+
         canvas.create_window((0, 0), window=scrollable_frame, anchor=tk.NW)
         canvas.configure(yscrollcommand=scrollbar.set)
-        
+
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
+
         # Create player rows
         for i in range(20):
             self.create_player_row(scrollable_frame, team_idx, i)
-            
+
     def create_player_row(self, parent, team_idx, slot_idx):
         team = self.teams[team_idx]
-        
+
         row_frame = tk.Frame(parent, bg="#2a2a3e", bd=1, relief=tk.SOLID)
         row_frame.pack(fill=tk.X, pady=1, padx=2)
-        
+
         # Slot number with checkbox
         slot_frame = tk.Frame(row_frame, bg="#2a2a3e")
         slot_frame.pack(side=tk.LEFT, padx=5, pady=3)
-        
+
         checkbox_var = tk.BooleanVar(value=False)
         checkbox = tk.Checkbutton(
             slot_frame,
@@ -275,7 +280,7 @@ class EntryTerminal:
             state=tk.DISABLED
         )
         checkbox.pack(side=tk.LEFT)
-        
+
         slot_label = tk.Label(
             slot_frame,
             text=str(slot_idx),
@@ -285,7 +290,7 @@ class EntryTerminal:
             width=2
         )
         slot_label.pack(side=tk.LEFT)
-        
+
         # ID Number entry
         id_entry = tk.Entry(
             row_frame,
@@ -301,7 +306,7 @@ class EntryTerminal:
         )
         id_entry.pack(side=tk.LEFT, padx=2, pady=2)
         id_entry.insert(0, team.players[slot_idx][0])
-        
+
         # Codename entry
         codename_entry = tk.Entry(
             row_frame,
@@ -317,7 +322,7 @@ class EntryTerminal:
         )
         codename_entry.pack(side=tk.LEFT, padx=2, pady=2)
         codename_entry.insert(0, team.players[slot_idx][1])
-        
+
         # Delete button
         delete_btn = tk.Button(
             row_frame,
@@ -332,22 +337,26 @@ class EntryTerminal:
             command=lambda: self.delete_player(team_idx, slot_idx)
         )
         delete_btn.pack(side=tk.LEFT, padx=2)
-        
+
         # Bind events for updating checkbox
         def update_checkbox(*args):
             has_data = bool(id_entry.get().strip())
             checkbox_var.set(has_data)
-            
+
         id_entry.bind("<KeyRelease>", update_checkbox)
         codename_entry.bind("<KeyRelease>", update_checkbox)
         # Save to DB when user presses Enter or leaves the field
         id_entry.bind('<Return>', lambda e: self.save_row(team_idx, slot_idx))
-        codename_entry.bind('<Return>', lambda e: self.save_row(team_idx, slot_idx))
-        codename_entry.bind('<FocusOut>', lambda e: self.save_row(team_idx, slot_idx))
-        
+        codename_entry.bind(
+            '<Return>', lambda e: self.save_row(team_idx, slot_idx))
+        # codename_entry.bind(
+        # Comment out to only save data when pressing enter?
+        # '<FocusOut>', lambda e: self.save_row(team_idx, slot_idx)) #Commented out to avoid prompting for hardware ID when leaving the field
+
         # Store references
-        self.entry_widgets[team_idx].append((id_entry, codename_entry, row_frame, checkbox_var))
-        
+        self.entry_widgets[team_idx].append(
+            (id_entry, codename_entry, row_frame, checkbox_var))
+
     def delete_player(self, team_idx, slot_idx):
         if slot_idx < len(self.entry_widgets[team_idx]):
             id_entry, codename_entry, _, checkbox_var = self.entry_widgets[team_idx][slot_idx]
@@ -370,7 +379,7 @@ class EntryTerminal:
         footer_frame = tk.Frame(self.root, bg="#1a1a2e", height=120)
         footer_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=10)
         footer_frame.pack_propagate(False)
-        
+
         # Game mode
         mode_label = tk.Label(
             footer_frame,
@@ -380,11 +389,11 @@ class EntryTerminal:
             fg="white"
         )
         mode_label.pack(pady=(5, 10))
-        
+
         # Function buttons frame
         buttons_frame = tk.Frame(footer_frame, bg="#1a1a2e")
         buttons_frame.pack()
-        
+
         functions = [
             ("F1\nEdit Game", self.edit_game),
             ("F2\nGame\nParameters", self.game_parameters),
@@ -395,7 +404,7 @@ class EntryTerminal:
             ("F10\nFlick\nSync", self.flick_sync),
             ("F12\nClear\nGame", self.clear_game)
         ]
-        
+
         for label, command in functions:
             btn = tk.Button(
                 buttons_frame,
@@ -412,7 +421,7 @@ class EntryTerminal:
                 command=command if command else lambda: None
             )
             btn.pack(side=tk.LEFT, padx=5)
-            
+
         # Instructions
         instructions = tk.Label(
             footer_frame,
@@ -422,7 +431,7 @@ class EntryTerminal:
             fg="#888888"
         )
         instructions.pack(pady=(10, 0))
-        
+
         # Bind keyboard shortcuts
         self.root.bind("<F1>", lambda e: self.edit_game())
         self.root.bind("<F2>", lambda e: self.game_parameters())
@@ -431,11 +440,11 @@ class EntryTerminal:
         self.root.bind("<F8>", lambda e: self.view_game())
         self.root.bind("<F10>", lambda e: self.flick_sync())
         self.root.bind("<F12>", lambda e: self.clear_game())
-        
+
     def get_all_players(self):
         """Get all players from both teams"""
         all_players = {"red_team": [], "green_team": []}
-        
+
         for team_idx, team_key in enumerate(["red_team", "green_team"]):
             for id_entry, codename_entry, _, _ in self.entry_widgets[team_idx]:
                 id_num = id_entry.get().strip()
@@ -445,35 +454,39 @@ class EntryTerminal:
                         "id_number": id_num,
                         "codename": codename
                     })
-        
+
         return all_players
-        
+
     def edit_game(self):
         messagebox.showinfo("Edit Game", "Edit Game function")
-        
+
     def game_parameters(self):
         messagebox.showinfo("Game Parameters", "Game Parameters function")
-        
+
     def start_games(self):
         players = self.get_all_players()
         red_count = len(players["red_team"])
         green_count = len(players["green_team"])
-        
+
         msg = f"Starting game with:\nRed Team: {red_count} players\nGreen Team: {green_count} players"
         messagebox.showinfo("Start Games", msg)
-        
+
+        # Start countdown
+        CountdownTimer(self.root, on_close=None,
+                       image_path="countdown_images", seconds=30).show()
+
     def preentered_games(self):
         messagebox.showinfo("PreEntered Games", "PreEntered Games function")
-        
+
     def view_game(self):
         players = self.get_all_players()
         msg = f"Red Team Players: {len(players['red_team'])}\n"
         msg += f"Green Team Players: {len(players['green_team'])}"
         messagebox.showinfo("View Game", msg)
-        
+
     def flick_sync(self):
         messagebox.showinfo("Flick Sync", "Flick Sync function")
-        
+
     def clear_game(self):
         result = messagebox.askyesno(
             "Clear Game",
@@ -504,10 +517,72 @@ class EntryTerminal:
             messagebox.showerror("DB Error", str(e))
             return ""
 
+    # Get hardware ID and error handling
+    def get_hardware_id(self):
+        h_str = self.hardware_id.get().strip()
+        if not h_str:
+            messagebox.showerror(
+                "Invalid Input", "Hardware ID cannot be empty.")
+            return None
+        if not h_str.isdigit():
+            messagebox.showerror(
+                "Invalid Input", "Hardware ID must be a number.")
+            return None
+        return int(h_str)
+
+    # Function to grab hardware ID and send it back to server
+    def send_hardware_id(self, popup):
+        h_id_str = self.hardware_id.get().strip()
+        if not h_id_str:
+            messagebox.showerror(
+                "Invalid Input", "Hardware ID cannot be empty.")
+            return
+        if not h_id_str.isdigit():
+            messagebox.showerror(
+                "Invalid Input", "Please enter a valid integer for Hardware ID.")
+            return
+
+        h_id = int(h_id_str)
+        send_packet(h_id)
+        popup.destroy()
+
+    # Function to create a pop up for hardware ID
+
+    def create_hardware_id_popup(self):
+
+        # Creates a popup
+        popup = tk.Toplevel(self.root)
+        popup.title("Hardware ID Input")
+        popup.geometry("300x150")
+
+        # Creates a frame to hold the widgets
+        frame = tk.Frame(popup)
+        frame.pack(pady=20)  # Center frame in y axis
+
+        # Create input field for ID
+        hardware_id_label = tk.Label(
+            frame, text="Enter Hardware ID: ")  # Label for input field
+        hardware_id_entry = tk.Entry(
+            # Input field
+            frame, textvariable=self.hardware_id)
+
+        # Create a button to submit ID
+        # Button calls function when submitting
+        submit_button = tk.Button(
+            frame, text="Submit", command=lambda: self.send_hardware_id(popup))
+
+        # Place widgets on the window
+        hardware_id_label.grid(row=0, column=0)
+        hardware_id_entry.grid(row=0, column=1)
+        submit_button.grid(row=1, column=0, columnspan=2, pady=10)
+
+
 def entry_terminal(pg_config):
     root = tk.Tk()
     app = EntryTerminal(root, pg_config)
     root.mainloop()
 
+
 if __name__ == "__main__":
-    entry_terminal({"dbname": "photon", "user": "student", "host": "localhost", "port": 5432})
+    entry_terminal({"dbname": "photon", "user": "student",
+                   "host": "localhost", "port": 5432})

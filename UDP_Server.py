@@ -17,6 +17,10 @@ UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 # Create a datagram socket for broadcastPort
 UDPBroadcastSocket = socket.socket(
     family=socket.AF_INET, type=socket.SOCK_DGRAM)
+    
+# Allow immediate reuse of address
+UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+UDPBroadcastSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 # Bind to address and ip
 UDPServerSocket.bind((localIP, localPort))
@@ -38,7 +42,7 @@ while (True):
     # Decode bytes to string
     message = message_bytes.decode()
     
-    clientMsg = "Hardware ID: {}".format(message)
+    clientMsg = "Client Message: {}".format(message)
     clientIP = "Client IP Address: {}".format(address)
 
     print(clientMsg)

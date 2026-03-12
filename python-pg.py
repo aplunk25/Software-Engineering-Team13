@@ -3,6 +3,7 @@ from psycopg2 import sql
 import UDP_Client
 from splashscreen import SplashScreen 
 from player_entry import entry_terminal
+from Countdown_timer import CountdownTimer
 
 
 # Define connection parameters
@@ -167,6 +168,8 @@ def run_app():
 
         # Launch GUI using SAME db config
         entry_terminal(connection_params)
+        
+        
 
     except Exception as error:
         print(f"Error: {error}")
@@ -176,6 +179,7 @@ if __name__ == "__main__":
     SplashScreen(on_close=run_app,
                 image_path="logo.jpg",
                 duration_ms=3000).show()
+    
 
 
 

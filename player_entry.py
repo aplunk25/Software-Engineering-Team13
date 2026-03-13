@@ -12,6 +12,7 @@ import psycopg2
 from psycopg2 import sql
 from UDP_Client import send_packet
 from Countdown_timer import CountdownTimer
+from play_action import launch_play_action
 
 
 class Team:
@@ -78,26 +79,26 @@ class EntryTerminal:
                     cur.execute("""
                         CREATE TABLE IF NOT EXISTS players (
                             id INTEGER PRIMARY KEY,
-                            codename TEXT NOT NULL
+                            codename TEXT NOT NULL,
+                            team INTEGER NOT NULL DEFAULT 0
                         );
+                    """)
+                    cur.execute("""
+                        ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
                     """)
                 conn.commit()
         except Exception as e:
             messagebox.showerror("DB Error", str(e))
 
-    def _db_upsert(self, pid: int, codename: str):
-        """Insert or update a player row."""
-        q = sql.SQL("""
-            INSERT INTO {t} ({idc}, {cc})
-            VALUES (%s, %s)
-        """).format(
-            t=sql.Identifier(self.table_name),
-            idc=sql.Identifier(self.id_column),
-            cc=sql.Identifier(self.codename_column),
-        )
+    def _db_upsert(self, pid: int, codename: str, team: int = 0):
+        """Insert or update a player row, including team (0=red, 1=green)."""
         with psycopg2.connect(**self.pg_config) as conn:
             with conn.cursor() as cur:
-                cur.execute(q, (pid, codename))
+                cur.execute("DELETE FROM players WHERE id = %s;", (pid,))
+                cur.execute(
+                    "INSERT INTO players (id, codename, team) VALUES (%s, %s, %s);",
+                    (pid, codename, team)
+                )
             conn.commit()
 
     def _db_delete(self, pid: int):
@@ -149,7 +150,7 @@ class EntryTerminal:
             self.create_hardware_id_popup()
 
         try:
-            self._db_upsert(pid, code)
+            self._db_upsert(pid, code, team_idx)
             checkbox_var.set(True)
 
         except Exception as e:
@@ -471,9 +472,12 @@ class EntryTerminal:
         msg = f"Starting game with:\nRed Team: {red_count} players\nGreen Team: {green_count} players"
         messagebox.showinfo("Start Games", msg)
 
-        # Start countdown
-        CountdownTimer(self.root, on_close=None,
-                       image_path="countdown_images", seconds=30).show()
+        # Start countdown; when it finishes, launch the Play Action display
+        def _after_countdown():
+            launch_play_action(self.root, self.pg_config)
+
+        CountdownTimer(self.root, on_close=_after_countdown,
+                       image_path="countdown_images", seconds=30)
 
     def preentered_games(self):
         messagebox.showinfo("PreEntered Games", "PreEntered Games function")
@@ -577,12 +581,23 @@ class EntryTerminal:
         submit_button.grid(row=1, column=0, columnspan=2, pady=10)
 
 
-def entry_terminal(pg_config):
-    root = tk.Tk()
-    app = EntryTerminal(root, pg_config)
-    root.mainloop()
+def entry_terminal(root_or_config, pg_config=None):
+    if pg_config is None:
+        # Called old way from python-pg.py: entry_terminal(connection_params)
+        pg_config = root_or_config
+        root = tk.Tk()
+        app = EntryTerminal(root, pg_config)
+        root.mainloop()
+    else:
+        # Called new way: entry_terminal(root, pg_config)
+        root = root_or_config
+        win = tk.Toplevel(root)
+        app = EntryTerminal(win, pg_config)
 
 
 if __name__ == "__main__":
-    entry_terminal({"dbname": "photon", "user": "student",
-                   "host": "localhost", "port": 5432})
+    root = tk.Tk()
+    root.withdraw()
+    entry_terminal(root, {"dbname": "photon", "user": "student",
+                          "host": "localhost", "port": 5432})
+    root.mainloop()

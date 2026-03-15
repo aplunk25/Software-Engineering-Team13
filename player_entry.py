@@ -398,8 +398,8 @@ class EntryTerminal:
         functions = [
             ("F1\nEdit Game", self.edit_game),
             ("F2\nGame\nParameters", self.game_parameters),
-            ("F3\nStart\nGames", self.start_games),
-            ("F5\nPreEntered\nGames", self.preentered_games),
+            ("F3\nPreEntered\nGames", self.preentered_games),
+            ("F5\nStart\nGames", self.start_games),
             ("F7\n\n", None),
             ("F8\nView\nGame", self.view_game),
             ("F10\nFlick\nSync", self.flick_sync),
@@ -436,8 +436,8 @@ class EntryTerminal:
         # Bind keyboard shortcuts
         self.root.bind("<F1>", lambda e: self.edit_game())
         self.root.bind("<F2>", lambda e: self.game_parameters())
-        self.root.bind("<F3>", lambda e: self.start_games())
-        self.root.bind("<F5>", lambda e: self.preentered_games())
+        self.root.bind("<F3>", lambda e: self.preentered_games())
+        self.root.bind("<F5>", lambda e: self.start_games())
         self.root.bind("<F8>", lambda e: self.view_game())
         self.root.bind("<F10>", lambda e: self.flick_sync())
         self.root.bind("<F12>", lambda e: self.clear_game())

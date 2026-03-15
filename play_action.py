@@ -299,7 +299,7 @@ class PlayActionDisplay:
 
         # ESC or F3 → close play action and return to player entry
         self.root.bind("<Escape>", lambda e: self._end_game())
-        self.root.bind("<F3>", lambda e: self._end_game())
+        self.root.bind("<F5>", lambda e: self._end_game())
 
     def _make_leaderboard(self, parent, team_idx: int) -> tk.Frame:
         color = TEAM_COLORS[team_idx]

@@ -1,79 +1,79 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Photon Run Script"
+echo "Photon Safe Startup"
 
-PROJECT_DIR="${PROJECT_DIR:-$HOME/photon_project}"
-VENV_DIR="${VENV_DIR:-$PROJECT_DIR/venv}"
+# Use the directory this script is stored in
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_DIR="$PROJECT_DIR/venv"
 
 echo "Project dir: $PROJECT_DIR"
 echo "Venv dir:    $VENV_DIR"
 echo ""
 
-# 1) System packages (Python + Tk + venv + Postgres)
-sudo apt update
-sudo apt install python3.9
- sudo apt install python3.9-venv 
- sudo apt install python3.9-distutils 
- sudo apt install python3.9-tk 
- sudo apt install python3-pip 
- sudo apt install postgresql 
- sudo apt install postgresql-contrib
+cd "$PROJECT_DIR"
 
-# 2) Start + enable Postgres
+# 1) Install only required system packages
+#    Does NOT modify PostgreSQL users/databases/tables
+sudo apt update
+sudo apt install -y \
+  python3.9 \
+  python3.9-venv \
+  python3.9-distutils \
+  python3.9-tk \
+  python3-pip \
+  postgresql \
+  postgresql-contrib
+
+# 2) Start PostgreSQL service only
+#    Does NOT create DBs, roles, or schemas
 sudo systemctl enable postgresql
 sudo systemctl restart postgresql
 
-# 3) Create student role + photon DB (idempotent)
-sudo -u postgres psql -v ON_ERROR_STOP=1 <<'SQL'
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'student') THEN
-    CREATE ROLE student WITH LOGIN PASSWORD 'student';
-  END IF;
-END $$;
-
-ALTER ROLE student WITH PASSWORD 'student';
-ALTER ROLE student CREATEDB;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'photon') THEN
-    CREATE DATABASE photon OWNER student;
-  END IF;
-END $$;
-SQL
-
-# 4) Create project folder + venv
-mkdir -p "$PROJECT_DIR"
-
+# 3) Create venv in the Photon project folder if missing
 if [ ! -d "$VENV_DIR" ]; then
-  python3 -m venv "$VENV_DIR"
+  python3.9 -m venv "$VENV_DIR"
 fi
 
-# 5) Install Python deps into venv
-# shellcheck disable=SC1090
+# 4) Activate venv and install Python dependencies
 source "$VENV_DIR/bin/activate"
-
 python -m pip install --upgrade pip
 python -m pip install psycopg2-binary Pillow
 
-deactivate
+echo ""
+echo "Environment ready."
+echo "Working directory: $(pwd)"
+echo ""
 
-echo ""
-echo "Setup Complete "
-echo ""
-echo "1) Activate venv:"
-echo "   source $VENV_DIR/bin/activate"
-echo ""
-echo "2) Test DB login:"
-echo "   psql -U student -d photon -h 127.0.0.1"
-echo ""
-echo "3) Run UDP server (terminal 1):"
-echo "   python UDP_Server.py"
-echo ""
-echo "4) Run app (terminal 2), make sure venv is active:"
-echo "   python python-pg.py"
-echo ""
-echo "5) Deactivate when done:"
-echo "   deactivate"
+# 5) Verify expected files exist before launching
+required_files=(
+  "python-pg.py"
+  "UDP_Server.py"
+  "player_entry.py"
+  "play_action.py"
+  "splashscreen.py"
+)
+
+for file in "${required_files[@]}"; do
+  if [ ! -f "$file" ]; then
+    echo "ERROR: Missing required file: $file"
+    exit 1
+  fi
+done
+
+# 6) Launch UDP server in background
+echo "Starting UDP server..."
+python UDP_Server.py &
+SERVER_PID=$!
+
+# Clean up background server on exit
+cleanup() {
+  echo ""
+  echo "Stopping UDP server..."
+  kill "$SERVER_PID" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# 7) Launch Photon app
+echo "Starting Photon app..."
+python python-pg.py

@@ -44,8 +44,8 @@ class EntryTerminal:
 
         self.pg_config = dict(pg_config)   # copy from python-pg.py
         # Fill in defaults if python-pg.py omits them
-        self.pg_config.setdefault('host', 'localhost')
-        self.pg_config.setdefault('port', 5432)
+        #self.pg_config.setdefault('host', 'localhost')
+        #self.pg_config.setdefault('port', 5432)
         self.table_name = "players"
         self.id_column = "id"
         self.codename_column = "codename"

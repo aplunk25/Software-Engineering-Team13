@@ -43,8 +43,8 @@ class PlayActionDisplay:
 
     def __init__(self, parent, pg_config: dict, game_seconds: int = GAME_DURATION_SECONDS):
         self.pg_config = dict(pg_config)
-        self.pg_config.setdefault("host", "localhost")
-        self.pg_config.setdefault("port", 5432)
+        #self.pg_config.setdefault("host", "localhost")
+        #self.pg_config.setdefault("port", 5432)
 
         #State
         # players[team_idx] = { equipment_id: {"codename": str, "score": int, "hits": int} }

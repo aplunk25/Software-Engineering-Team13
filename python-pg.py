@@ -140,10 +140,10 @@ def read_int(prompt: str) -> int:
 
 # finally:
     # Close the cursor and connection
-    if cursor:
-        cursor.close()
-    if conn:
-        conn.close()
+    # if cursor:
+    #    cursor.close()
+    # if conn:
+    #    conn.close()
 def run_app():
     try:
 		

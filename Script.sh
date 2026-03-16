@@ -17,10 +17,10 @@ cd "$PROJECT_DIR"
 #    Does NOT modify PostgreSQL users/databases/tables
 sudo apt update
 sudo apt install -y \
-  python3.9 \
-  python3.9-venv \
-  python3.9-distutils \
-  python3.9-tk \
+  python3 \
+  python3-venv \
+  python3-distutils \
+  python3-tk \
   python3-pip \
   postgresql \
   postgresql-contrib
@@ -32,7 +32,7 @@ sudo systemctl restart postgresql
 
 # 3) Create venv in the Photon project folder if missing
 if [ ! -d "$VENV_DIR" ]; then
-  python3.9 -m venv "$VENV_DIR"
+  python3 -m venv "$VENV_DIR"
 fi
 
 # 4) Activate venv and install Python dependencies

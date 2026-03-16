@@ -13,29 +13,30 @@ import threading
 import queue
 import psycopg2
 from psycopg2 import sql
+from typing import Optional
 
-#UDP listener config
-LISTEN_IP   = "0.0.0.0"
+# UDP listener config
+LISTEN_IP = "0.0.0.0"
 LISTEN_PORT = 7501          # same port the server already uses
 BUFFER_SIZE = 1024
 
-#Game settings 
+# Game settings
 GAME_DURATION_SECONDS = 360   # 6-minute game
-HIT_SCORE             = 10    # points per hit
-BASE_SCORE            = 0
+HIT_SCORE = 10    # points per hit
+BASE_SCORE = 0
 
- 
-BG          = "#0a0a12"
-PANEL_BG    = "#10101e"
-RED_COLOR   = "#ff2244"
+
+BG = "#0a0a12"
+PANEL_BG = "#10101e"
+RED_COLOR = "#ff2244"
 GREEN_COLOR = "#00ff88"
-GOLD        = "#ffd700"
-WHITE       = "#f0f0ff"
-GREY        = "#44445a"
-CYAN        = "#00d4ff"
+GOLD = "#ffd700"
+WHITE = "#f0f0ff"
+GREY = "#44445a"
+CYAN = "#00d4ff"
 
 TEAM_COLORS = ["#ff2244", "#00ff88"]   # red, green
-TEAM_NAMES  = ["RED TEAM", "GREEN TEAM"]
+TEAM_NAMES = ["RED TEAM", "GREEN TEAM"]
 
 
 class PlayActionDisplay:
@@ -43,24 +44,23 @@ class PlayActionDisplay:
 
     def __init__(self, parent, pg_config: dict, game_seconds: int = GAME_DURATION_SECONDS):
         self.pg_config = dict(pg_config)
-        #self.pg_config.setdefault("host", "localhost")
-        #self.pg_config.setdefault("port", 5432)
+        # self.pg_config.setdefault("host", "localhost")
+        # self.pg_config.setdefault("port", 5432)
 
-        #State
+        # State
         # players[team_idx] = { equipment_id: {"codename": str, "score": int, "hits": int} }
         self.players: list[dict] = [{}, {}]
         self._load_players_from_db()
 
-        self.team_scores   = [0, 0]
-        self.time_left     = game_seconds
-        self.running       = True
+        self.team_scores = [0, 0]
+        self.time_left = game_seconds
+        self.running = True
         self.hit_feed: list[str] = []   # recent hit messages
-        self.MAX_FEED      = 8
+        self.MAX_FEED = 8
 
-        
         self._event_queue: queue.Queue = queue.Queue()
 
-        # Window 
+        # Window
         self.root = tk.Toplevel(parent)
         self.root.title("PHOTON – Play Action")
         self.root.configure(bg=BG)
@@ -69,7 +69,7 @@ class PlayActionDisplay:
         self._build_fonts()
         self._build_ui()
 
-        # Background threads 
+        # Background threads
         self._udp_thread = threading.Thread(
             target=self._udp_listener, daemon=True)
         self._udp_thread.start()
@@ -78,16 +78,15 @@ class PlayActionDisplay:
         self._poll_queue()  # drain event queue safely on main thread
         self._tick()        # start 1-second timer
 
-    
     # DB helpers
-    
 
     def _load_players_from_db(self):
         """Load all players from DB using the saved team column (0=red, 1=green)."""
         try:
             with psycopg2.connect(**self.pg_config) as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT id, codename, team FROM players ORDER BY id;")
+                    cur.execute(
+                        "SELECT id, codename, team FROM players ORDER BY id;")
                     rows = cur.fetchall()
 
             for pid, codename, team_idx in rows:
@@ -98,7 +97,8 @@ class PlayActionDisplay:
                     "score":    BASE_SCORE,
                     "hits":     0,
                 }
-            print(f"[PlayAction] Loaded {len(self.players[0])} red, {len(self.players[1])} green players.")
+            print(
+                f"[PlayAction] Loaded {len(self.players[0])} red, {len(self.players[1])} green players.")
         except Exception as e:
             print(f"[PlayAction] DB load error: {e}")
 
@@ -108,15 +108,13 @@ class PlayActionDisplay:
                 return team[equipment_id]["codename"]
         return f"ID#{equipment_id}"
 
-    def _get_team_of(self, equipment_id: str) -> int | None:
+    def _get_team_of(self, equipment_id: str) -> Optional[int]:
         for idx, team in enumerate(self.players):
             if equipment_id in team:
                 return idx
         return None
 
-    
     # UDP listener (runs in background thread)
-    
 
     def _udp_listener(self):
         """
@@ -157,7 +155,7 @@ class PlayActionDisplay:
         shooter_id, target_id = parts[0].strip(), parts[1].strip()
 
         shooter_team = self._get_team_of(shooter_id)
-        target_team  = self._get_team_of(target_id)
+        target_team = self._get_team_of(target_id)
 
         if shooter_team is None or target_team is None:
             return
@@ -166,12 +164,12 @@ class PlayActionDisplay:
 
         # Award points
         self.players[shooter_team][shooter_id]["score"] += HIT_SCORE
-        self.players[shooter_team][shooter_id]["hits"]  += 1
-        self.team_scores[shooter_team]                  += HIT_SCORE
+        self.players[shooter_team][shooter_id]["hits"] += 1
+        self.team_scores[shooter_team] += HIT_SCORE
 
         shooter_name = self._get_codename(shooter_id)
-        target_name  = self._get_codename(target_id)
-        feed_color   = TEAM_COLORS[shooter_team]
+        target_name = self._get_codename(target_id)
+        feed_color = TEAM_COLORS[shooter_team]
 
         self.hit_feed.insert(0, (shooter_name, target_name, feed_color))
         if len(self.hit_feed) > self.MAX_FEED:
@@ -179,8 +177,6 @@ class PlayActionDisplay:
 
         # Put event on queue — never call root.after() from a worker thread on macOS
         self._event_queue.put("refresh")
-
-    
 
     def _poll_queue(self):
         """Drain event queue on main thread every 100 ms — safe on macOS."""
@@ -215,21 +211,19 @@ class PlayActionDisplay:
         color = RED_COLOR if self.time_left <= 30 else CYAN
         self.timer_label.configure(fg=color)
 
-    
-
     def _build_fonts(self):
-        self.font_title    = tkfont.Font(family="Courier", size=22, weight="bold")
-        self.font_timer    = tkfont.Font(family="Courier", size=52, weight="bold")
-        self.font_team     = tkfont.Font(family="Courier", size=18, weight="bold")
-        self.font_score    = tkfont.Font(family="Courier", size=36, weight="bold")
-        self.font_player   = tkfont.Font(family="Courier", size=12)
-        self.font_header   = tkfont.Font(family="Courier", size=11, weight="bold")
-        self.font_feed     = tkfont.Font(family="Courier", size=11)
-        self.font_gameover = tkfont.Font(family="Courier", size=48, weight="bold")
+        self.font_title = tkfont.Font(family="Courier", size=22, weight="bold")
+        self.font_timer = tkfont.Font(family="Courier", size=52, weight="bold")
+        self.font_team = tkfont.Font(family="Courier", size=18, weight="bold")
+        self.font_score = tkfont.Font(family="Courier", size=36, weight="bold")
+        self.font_player = tkfont.Font(family="Courier", size=12)
+        self.font_header = tkfont.Font(
+            family="Courier", size=11, weight="bold")
+        self.font_feed = tkfont.Font(family="Courier", size=11)
+        self.font_gameover = tkfont.Font(
+            family="Courier", size=48, weight="bold")
 
-    
-    # UI 
-    
+    # UI
 
     def _build_ui(self):
         # ── Top bar: title + timer ───────────────────────────────────────────
@@ -244,13 +238,13 @@ class PlayActionDisplay:
                                     font=self.font_timer, bg=PANEL_BG, fg=CYAN)
         self.timer_label.pack()
 
-        #Middle: team score banner
+        # Middle: team score banner
         banner = tk.Frame(self.root, bg=BG, pady=4)
         banner.pack(fill=tk.X)
 
         for team_idx in range(2):
             col = TEAM_COLORS[team_idx]
-            f   = tk.Frame(banner, bg=col, padx=20, pady=4)
+            f = tk.Frame(banner, bg=col, padx=20, pady=4)
             f.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=4)
 
             tk.Label(f, text=TEAM_NAMES[team_idx],
@@ -261,11 +255,11 @@ class PlayActionDisplay:
             score_lbl.pack()
             # keep reference so we can update
             if team_idx == 0:
-                self.red_score_label   = score_lbl
+                self.red_score_label = score_lbl
             else:
                 self.green_score_label = score_lbl
 
-        #leaderboards + hit feed
+        # leaderboards + hit feed
         bottom = tk.Frame(self.root, bg=BG)
         bottom.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
 
@@ -328,13 +322,11 @@ class PlayActionDisplay:
         rows_frame.pack(fill=tk.BOTH, expand=True, padx=6)
 
         if team_idx == 0:
-            self.red_rows_frame  = rows_frame
+            self.red_rows_frame = rows_frame
         else:
             self.green_rows_frame = rows_frame
 
         return outer
-
-    
 
     def _refresh_ui(self):
         self._refresh_scores()
@@ -366,7 +358,7 @@ class PlayActionDisplay:
             row.pack(fill=tk.X, pady=1)
 
             rank_color = GOLD if rank == 1 else WHITE
-            fg_color   = color if rank <= 3 else WHITE
+            fg_color = color if rank <= 3 else WHITE
 
             tk.Label(row, text=f"{rank}",
                      width=3, font=self.font_player,
@@ -392,14 +384,11 @@ class PlayActionDisplay:
             else:
                 lbl.configure(text="", fg=GREY)
 
-    
-    
     # Game over
-    
 
     def _game_over(self):
         self.running = False
-        red_score   = self.team_scores[0]
+        red_score = self.team_scores[0]
         green_score = self.team_scores[1]
 
         if red_score > green_score:
@@ -427,10 +416,6 @@ class PlayActionDisplay:
     def _end_game(self):
         self.running = False
         self.root.destroy()
-
-
-
-
 
 
 def launch_play_action(parent, pg_config: dict, game_seconds: int = GAME_DURATION_SECONDS):

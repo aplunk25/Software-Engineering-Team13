@@ -16,9 +16,6 @@ connection_params = {
 }
 if for some reason the VM throws an error because of Mac/Windows Comopatibility, comment out the user and password.
 
-
-Furthermore, in the Script, the installs use Python3.9 in the code, if that throws an error, change all lines that say python3.9 to just python3. 
-
 HOW TO RUN PROGRAM:
 
 1. Download files from GitHub and extract to desired location

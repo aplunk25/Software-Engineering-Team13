@@ -8,11 +8,15 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import json
 import os
+import json
 import psycopg2
 from psycopg2 import sql
 from UDP_Client import send_packet
 from Countdown_timer import CountdownTimer
 from play_action import launch_play_action
+
+HARDWARE_TEAM_PAIR = {}  # Global dictionary to store hardware ID to team mapping
+HARDWARE_TEAM_PAIR_FILE = "hardware_team.json"
 
 
 class Team:
@@ -44,8 +48,8 @@ class EntryTerminal:
 
         self.pg_config = dict(pg_config)   # copy from python-pg.py
         # Fill in defaults if python-pg.py omits them
-        #self.pg_config.setdefault('host', 'localhost')
-        #self.pg_config.setdefault('port', 5432)
+        # self.pg_config.setdefault('host', 'localhost')
+        # self.pg_config.setdefault('port', 5432)
         self.table_name = "players"
         self.id_column = "id"
         self.codename_column = "codename"
@@ -83,9 +87,9 @@ class EntryTerminal:
                             team INTEGER NOT NULL DEFAULT 0
                         );
                     """)
-                    # cur.execute("""
-                    #     ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
-                    # """)
+                    cur.execute("""
+                        ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
+                    """)
                 conn.commit()
         except Exception as e:
             messagebox.showerror("DB Error", str(e))
@@ -147,7 +151,7 @@ class EntryTerminal:
 
         # If both boxes are filled, prompt for hardware ID
         if checkbox_var.get() and id_str and code:
-            self.create_hardware_id_popup()
+            self.create_hardware_id_popup(team_idx)
 
         try:
             self._db_upsert(pid, code, team_idx)
@@ -412,9 +416,9 @@ class EntryTerminal:
                 text=label,
                 font=("Courier", 8),
                 bg="#2a2a3e",
-                fg="white",
+                fg="black",
                 activebackground="#3a3a4e",
-                activeforeground="white",
+                activeforeground="black",
                 bd=1,
                 relief=tk.RAISED,
                 width=10,
@@ -474,8 +478,6 @@ class EntryTerminal:
 
         # Start countdown; when it finishes, launch the Play Action display
         def _after_countdown():
-            # Close player entry screen
-            # `self.root.destroy()`
             launch_play_action(self.root, self.pg_config)
 
         CountdownTimer(self.root, on_close=_after_countdown,
@@ -499,14 +501,6 @@ class EntryTerminal:
             "Are you sure you want to clear all players?"
         )
         if result:
-            try:
-                with psycopg2.connect(**self.pg_config) as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("DELETE FROM players;")
-                    conn.commit()
-            except Exception as e:
-                messagebox.showerror("DB Error", str(e))
-            return
             for team_idx in range(2):
                 for id_entry, codename_entry, _, checkbox_var in self.entry_widgets[team_idx]:
                     id_entry.delete(0, tk.END)
@@ -531,6 +525,28 @@ class EntryTerminal:
             messagebox.showerror("DB Error", str(e))
             return ""
 
+    # Save the current hardware-team mapping to JSON
+    def save_hardware_team_pair(self):
+        HARDWARE_TEAM_PAIR_FILE = "hardware_team.json"
+        try:
+            with open(HARDWARE_TEAM_PAIR_FILE, "w") as f:
+                json.dump(HARDWARE_TEAM_PAIR, f)
+        except Exception as e:
+            messagebox.showerror("Save Error", str(e))
+
+    # Load hardware-team mapping from JSON
+    def load_hardware_team_pair(self):
+        HARDWARE_TEAM_PAIR_FILE = "hardware_team.json"
+        try:
+            if os.path.exists(HARDWARE_TEAM_PAIR_FILE):
+                with open(HARDWARE_TEAM_PAIR_FILE, "r") as f:
+                    global HARDWARE_TEAM_PAIR  # Use global to modify the global variable
+                    HARDWARE_TEAM_PAIR = json.load(f)
+            else:
+                print("No saved JSON file found.")
+        except Exception as e:
+            messagebox.showerror("Load Error", str(e))
+
     # Get hardware ID and error handling
     def get_hardware_id(self):
         h_str = self.hardware_id.get().strip()
@@ -545,29 +561,41 @@ class EntryTerminal:
         return int(h_str)
 
     # Function to grab hardware ID and send it back to server
-    def send_hardware_id(self, popup):
-        h_id_str = self.hardware_id.get().strip()
-        if not h_id_str:
-            messagebox.showerror(
-                "Invalid Input", "Hardware ID cannot be empty.")
-            return
-        if not h_id_str.isdigit():
-            messagebox.showerror(
-                "Invalid Input", "Please enter a valid integer for Hardware ID.")
+    def send_hardware_id(self, popup, team_idx):
+        h_id = self.get_hardware_id()
+        if h_id is None:
             return
 
-        h_id = int(h_id_str)
+        # Call create_hardware_team_pair here to ensure the mapping is created before sending the packet
+        self.create_hardware_team_pair(h_id, team_idx)
+        # h_id = int(h_id_str)
         send_packet(h_id)
         popup.destroy()
 
+    # Function to create key-value pair for hardware_id and Team
+    def create_hardware_team_pair(self, h_id, team_idx):
+        # h_id = self.get_hardware_id() This tries to read hardware before the user has a chance to input it.
+        if (team_idx == 0):
+            HARDWARE_TEAM_PAIR[h_id] = "RED"
+        elif (team_idx == 1):
+            HARDWARE_TEAM_PAIR[h_id] = "GREEN"
+        # Save the updated mapping to JSON after adding a new pair!
+        self.save_hardware_team_pair()
+
     # Function to create a pop up for hardware ID
 
-    def create_hardware_id_popup(self):
-
+    def create_hardware_id_popup(self, team_idx):
+        # Sets hardware_id to empty to ensure the field is blank
+        self.hardware_id.set("")
         # Creates a popup
         popup = tk.Toplevel(self.root)
         popup.title("Hardware ID Input")
         popup.geometry("300x150")
+
+        popup.transient(self.root)   # associate with parent
+        popup.grab_set()             # make it modal (blocks interaction behind)
+        popup.focus_force()          # force focus
+        popup.lift()                 # bring to front
 
         # Creates a frame to hold the widgets
         frame = tk.Frame(popup)
@@ -583,12 +611,18 @@ class EntryTerminal:
         # Create a button to submit ID
         # Button calls function when submitting
         submit_button = tk.Button(
-            frame, text="Submit", command=lambda: self.send_hardware_id(popup))
+            frame, text="Submit", command=lambda: self.send_hardware_id(popup, team_idx))
 
         # Place widgets on the window
         hardware_id_label.grid(row=0, column=0)
         hardware_id_entry.grid(row=0, column=1)
         submit_button.grid(row=1, column=0, columnspan=2, pady=10)
+
+        # Binds enter key to submit button
+        hardware_id_entry.bind(
+            "<Return>",
+            lambda e: self.send_hardware_id(popup, team_idx)
+        )
 
 
 def entry_terminal(root_or_config, pg_config=None):

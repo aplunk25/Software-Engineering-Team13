@@ -1,27 +1,58 @@
 # Summary: This code defines a UDP client that allows the user to select between local or broadcast network.
 
+
 # To send the equipment code to the server, call get_equipment_code(equipment_code).
+
 
 # Where do I call get_equipment_code()? Call it from another script where you want to send the code.
 
 
 # Importations
 
+
 import socket
+
+
 import atexit
+
+
+import json
 
 
 # Global variable to store server address
 
+
 SERVER_ADDRESS = None
+
 
 # Create a UDP socket at client side (socket() is a class from socket module, creates object)
 
+
 UDPClientSocket = socket.socket(
 
-family=socket.AF_INET, type=socket.SOCK_DGRAM) #Creates single socket for entire program
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # Creates single socket for entire program
+
+
+
+    family=socket.AF_INET, type=socket.SOCK_DGRAM)
+
 
 # enable broadcasts
+
 
 UDPClientSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
@@ -59,15 +90,51 @@ def select_network():
 
             print("----------------------------\n")
 
+
 # Configure server once at startup and store in global variable
 
 
 def configure_server():
+
     global SERVER_ADDRESS
+
     SERVER_ADDRESS = select_network()
+
+    save_SERVER_ADDRESS()
+
+
+# Function to save Server address in a json file
+
+
+def save_SERVER_ADDRESS():
+
+    global SERVER_ADDRESS
+
+    with open('server_address.json', 'w') as f:
+
+        json.dump(SERVER_ADDRESS, f)
+
+
+# Function to load Server address from a json file
+
+
+def load_SERVER_ADDRESS():
+
+    global SERVER_ADDRESS
+
+    try:
+
+        with open('server_address.json', 'r') as f:
+
+            SERVER_ADDRESS = tuple(json.load(f))
+
+    except FileNotFoundError:
+
+        print("No server address found. Please configure the server.")
 
 
 # Function to get equipment code and handle any future logic.
+
 
 def get_equipment_code(equipment_code):
 
@@ -88,8 +155,11 @@ def get_equipment_code(equipment_code):
 def send_packet(data):
 
     # Check if the server address is configured, else prints error and returns
+
     if SERVER_ADDRESS is None:
+
         print("ERROR: Server address not configured.")
+
         return
 
     # variable containing the message to send to the server
@@ -98,7 +168,8 @@ def send_packet(data):
 
     # Encode the message to bytes!
 
-    #bytesToSend = str.encode(msgFromClient)
+    # bytesToSend = str.encode(msgFromClient)
+
     bytesToSend = str(msgFromClient).encode()
 
     # Defines the buffer size at 1KB or 1024 bytes
@@ -111,21 +182,28 @@ def send_packet(data):
 
     # Receive response from server
 
-    msgFromServer = UDPClientSocket.recvfrom(bufferSize)  #[0] is network, [1] is port
-    server_sender_port = msgFromServer[1]
+    # msgFromServer = UDPClientSocket.recvfrom(
 
-    # decode the bytes to a normal string
-    msg_decoded = msgFromServer[0].decode()
+    #     bufferSize)  # [0] is network, [1] is port
 
-    # now format the message
-    msg = "Message from Server: {}".format(msg_decoded)
+    # server_sender_port = msgFromServer[1]
 
-    # Print message from server
+    # # decode the bytes to a normal string
 
-    print(msg)
+    # msg_decoded = msgFromServer[0].decode()
 
-    print("Server received from port:  ", SERVER_ADDRESS[1])
-    print("Server sender port: ", server_sender_port)
-    
+    # # now format the message
+
+    # msg = "Message from Server: {}".format(msg_decoded)
+
+    # # Print message from server
+
+    # print(msg)
+
+    # print("Server received from port:  ", SERVER_ADDRESS[1])
+
+    # print("Server sender port: ", server_sender_port)
+
+
 # Close the socket automatically on program exit
 atexit.register(UDPClientSocket.close)

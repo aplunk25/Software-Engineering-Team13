@@ -14,10 +14,11 @@ import queue
 import psycopg2
 from psycopg2 import sql
 from typing import Optional
+from UDP_Client import send_packet
 
 # UDP listener config
 LISTEN_IP = "0.0.0.0"
-LISTEN_PORT = 7501          # same port the server already uses
+LISTEN_PORT = 7502          # port that server broadcasts to
 BUFFER_SIZE = 1024
 
 # Game settings
@@ -147,7 +148,7 @@ class PlayActionDisplay:
         """Parse a hit packet and update scores."""
         if ":" not in msg:
             return   # not a hit packet
-
+            print(f"[PlayAction]Received from UDP the message: " + msg)
         parts = msg.split(":")
         if len(parts) != 2:
             return
@@ -412,6 +413,8 @@ class PlayActionDisplay:
                   font=self.font_team, bg=PANEL_BG, fg=WHITE,
                   activebackground=GREY, bd=0, padx=20, pady=10,
                   command=self._end_game).pack(pady=40)
+        for i in range(3):
+            send_packet("221")
 
     def _end_game(self):
         self.running = False

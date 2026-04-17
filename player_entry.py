@@ -83,9 +83,9 @@ class EntryTerminal:
                             team INTEGER NOT NULL DEFAULT 0
                         );
                     """)
-                    cur.execute("""
-                        ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
-                    """)
+                    # cur.execute("""
+                    #     ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
+                    # """)
                 conn.commit()
         except Exception as e:
             messagebox.showerror("DB Error", str(e))
@@ -412,9 +412,9 @@ class EntryTerminal:
                 text=label,
                 font=("Courier", 8),
                 bg="#2a2a3e",
-                fg="black",
+                fg="white",
                 activebackground="#3a3a4e",
-                activeforeground="black",
+                activeforeground="white",
                 bd=1,
                 relief=tk.RAISED,
                 width=10,
@@ -475,7 +475,7 @@ class EntryTerminal:
         # Start countdown; when it finishes, launch the Play Action display
         def _after_countdown():
             # Close player entry screen
-            self.root.destroy()
+            # `self.root.destroy()`
             launch_play_action(self.root, self.pg_config)
 
         CountdownTimer(self.root, on_close=_after_countdown,
@@ -499,6 +499,14 @@ class EntryTerminal:
             "Are you sure you want to clear all players?"
         )
         if result:
+            try:
+                with psycopg2.connect(**self.pg_config) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("DELETE FROM players;")
+                    conn.commit()
+            except Exception as e:
+                messagebox.showerror("DB Error", str(e))
+            return
             for team_idx in range(2):
                 for id_entry, codename_entry, _, checkbox_var in self.entry_widgets[team_idx]:
                     id_entry.delete(0, tk.END)

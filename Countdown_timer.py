@@ -94,13 +94,14 @@ class CountdownTimer:
 
     def _finish(self):
 
-        self.root.destroy()
 
         # self._label.config(image="")
 
         if self.on_close:
 
             self.on_close()
+        
+        self.root.destroy()
 
     def show(self):
 

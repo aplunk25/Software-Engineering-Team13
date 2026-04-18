@@ -38,7 +38,7 @@ fi
 # 4) Activate venv and install Python dependencies
 source "$VENV_DIR/bin/activate"
 python -m pip install --upgrade pip
-python -m pip install psycopg2-binary Pillow
+python -m pip install psycopg2-binary Pillow playsound
 
 echo ""
 echo "Environment ready."

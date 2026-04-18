@@ -1,4 +1,5 @@
 import tkinter as tk
+import music_player
 
 from PIL import Image, ImageTk
 import UDP_Client
@@ -64,6 +65,7 @@ class CountdownTimer:
         )
 
         # Start the countdown
+        self.root.after(17000, music_player.play_music) # 17 sec delay, music start
         self.start_countdown()
 
     def start_countdown(self):

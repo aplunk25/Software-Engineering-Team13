@@ -25,7 +25,7 @@ BUFFER_SIZE = 1024
 # Game settings
 GAME_DURATION_SECONDS = 360   # 6-minute game
 HIT_SCORE = 10    # points per hit
-BASE_SCORE = 0
+BASE_SCORE = 100
 BASE_IDS = {"53", "43"}  # 43 = red base, 53 = green base
 
 
@@ -171,9 +171,11 @@ class PlayActionDisplay:
         # Check if target is a base
         if target_id in BASE_IDS:
             self.base_capturers.add(shooter_id)
-            self.team_scores[shooter_team] += 100  # bonus points for hitting base
+            # bonus points for hitting base
+            self.team_scores[shooter_team] += 100
             shooter_name = self._get_codename(shooter_id)
-            self.hit_feed.insert(0, (shooter_name, "BASE", TEAM_COLORS[shooter_team]))
+            self.hit_feed.insert(
+                0, (shooter_name, "BASE", TEAM_COLORS[shooter_team]))
             if len(self.hit_feed) > self.MAX_FEED:
                 self.hit_feed.pop()
             self._event_queue.put("refresh")
@@ -181,10 +183,44 @@ class PlayActionDisplay:
 
         target_team = self._get_team_of(target_id)
 
+        # Shooter is rewarded 100 pts for hitting opposing base
+        if target_id == "53":  # Red base scored by green
+            if shooter_team == 1:  # green team
+                self.players[shooter_team][shooter_id]["score"] += BASE_SCORE
+                self.team_scores[shooter_team] += BASE_SCORE
+                self._event_queue.put("refresh")
+            return
+
+        if target_id == "43":  # Green base scored by red
+            if shooter_team == 0:  # red team
+                self.players[shooter_team][shooter_id]["score"] += BASE_SCORE
+                self.team_scores[shooter_team] += BASE_SCORE
+                self._event_queue.put("refresh")
+            return
+
         if target_team is None:
             return
+
         if shooter_team == target_team:
-            return   # friendly fire – ignore
+            # Friendly fire penalty
+            self.players[shooter_team][shooter_id]["score"] -= HIT_SCORE
+            self.players[target_team][target_id]["score"] -= HIT_SCORE
+
+            # Reduce team score?
+            self.team_scores[shooter_team] -= HIT_SCORE * 2
+
+            shooter_name = self._get_codename(shooter_id)
+            target_name = self._get_codename(target_id)
+            feed_color = TEAM_COLORS[shooter_team]
+
+            # Add to hit feed
+            self.hit_feed.insert(
+                0, (shooter_name, target_name, feed_color))
+            if len(self.hit_feed) > self.MAX_FEED:
+                self.hit_feed.pop()
+
+            self._event_queue.put("refresh")
+            return
 
         # Award points
         self.players[shooter_team][shooter_id]["score"] += HIT_SCORE

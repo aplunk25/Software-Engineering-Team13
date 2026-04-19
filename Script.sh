@@ -14,19 +14,16 @@ echo ""
 cd "$PROJECT_DIR"
 
 # 1) Install only required system packages
-#    Does NOT modify PostgreSQL users/databases/tables
 sudo apt update
 sudo apt install -y \
   python3 \
   python3-venv \
-  python3-distutils \
   python3-tk \
   python3-pip \
   postgresql \
   postgresql-contrib
 
 # 2) Start PostgreSQL service only
-#    Does NOT create DBs, roles, or schemas
 sudo systemctl enable postgresql
 sudo systemctl restart postgresql
 
@@ -38,7 +35,7 @@ fi
 # 4) Activate venv and install Python dependencies
 source "$VENV_DIR/bin/activate"
 python -m pip install --upgrade pip
-python -m pip install psycopg2-binary Pillow playsound
+python -m pip install psycopg2-binary Pillow pygame
 
 echo ""
 echo "Environment ready."

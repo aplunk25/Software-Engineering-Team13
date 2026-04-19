@@ -422,6 +422,12 @@ class PlayActionDisplay:
             tk.Label(row, text=f"{rank}",
                      width=3, font=self.font_player,
                      bg=PANEL_BG, fg=rank_color).pack(side=tk.LEFT)
+            # Show base icon if this player has hit base
+            if pid in self.base_capturers and self.base_icon:
+                tk.Label(row, image=self.base_icon,
+                         bg=PANEL_BG).pack(side=tk.LEFT)
+
+            
             tk.Label(row, text=data["codename"][:14],
                      width=16, font=self.font_player,
                      bg=PANEL_BG, fg=fg_color, anchor=tk.W).pack(side=tk.LEFT)

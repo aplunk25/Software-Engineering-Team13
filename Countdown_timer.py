@@ -65,7 +65,7 @@ class CountdownTimer:
         )
 
         # Start the countdown
-        self.root.after(17000, music_player.play_music) # 17 sec delay, music start
+        self.root.after(15000, music_player.play_music) # 17 sec delay, music start
         self.start_countdown()
 
     def start_countdown(self):

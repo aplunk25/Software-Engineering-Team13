@@ -13,6 +13,7 @@ import socket
 import threading
 import queue
 import psycopg2
+import json
 from psycopg2 import sql
 from typing import Optional
 from UDP_Client import send_packet
@@ -91,24 +92,24 @@ class PlayActionDisplay:
     # DB helpers
 
     def _load_players_from_db(self):
-        """Load all players from DB using the saved team column (0=red, 1=green)."""
         try:
+            # Load hardware->team mapping from json
+            with open("hardware_team.json", "r") as f:
+                hardware_team = json.load(f)  # e.g. {"1": "RED", "2": "GREEN"}
+
             with psycopg2.connect(**self.pg_config) as conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT id, codename, team FROM players ORDER BY id;")
+                    cur.execute("SELECT id, codename FROM players ORDER BY id;")
                     rows = cur.fetchall()
 
-            for pid, codename, team_idx in rows:
-                if team_idx not in (0, 1):
-                    team_idx = 0
+            for pid, codename in rows:
+                team_color = hardware_team.get(str(pid), "RED")
+                team_idx = 0 if team_color == "RED" else 1
                 self.players[team_idx][str(pid)] = {
                     "codename": codename,
-                    "score":    BASE_SCORE,
-                    "hits":     0,
+                    "score": 0,
+                    "hits": 0,
                 }
-            print(
-                f"[PlayAction] Loaded {len(self.players[0])} red, {len(self.players[1])} green players.")
         except Exception as e:
             print(f"[PlayAction] DB load error: {e}")
 
@@ -422,16 +423,18 @@ class PlayActionDisplay:
             tk.Label(row, text=f"{rank}",
                      width=3, font=self.font_player,
                      bg=PANEL_BG, fg=rank_color).pack(side=tk.LEFT)
+            
             # Show base icon if this player has hit base
             if pid in self.base_capturers and self.base_icon:
                 tk.Label(row, image=self.base_icon,
                          bg=PANEL_BG).pack(side=tk.LEFT)
-
+            
             
             tk.Label(row, text=data["codename"][:14],
                      width=16, font=self.font_player,
                      bg=PANEL_BG, fg=fg_color, anchor=tk.W).pack(side=tk.LEFT)
 
+            
 
             tk.Label(row, text=str(data["score"]),
                      width=7, font=self.font_player,

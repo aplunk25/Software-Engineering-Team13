@@ -16,6 +16,9 @@ connection_params = {
 }
 if for some reason the VM throws an error because of Mac/Windows Comopatibility, comment out the user and password.
 
+
+Something that else can happen is when the Repo is installed, it may place the Photon Images and Photon Tracks outside of their respective folders, if this happens, placing them back in will make it work accordingly. 
+
 HOW TO RUN PROGRAM:
 
 1. Download files from GitHub and extract to desired location

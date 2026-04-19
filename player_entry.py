@@ -86,9 +86,9 @@ class EntryTerminal:
                             team INTEGER NOT NULL DEFAULT 0
                         );
                     """)
-                    # cur.execute("""
-                    #     ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
-                    # """)
+                    cur.execute("""
+                        ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
+                    """)
                 conn.commit()
         except Exception as e:
             messagebox.showerror("DB Error", str(e))

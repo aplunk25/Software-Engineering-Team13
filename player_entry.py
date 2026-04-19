@@ -82,25 +82,20 @@ class EntryTerminal:
                     cur.execute("""
                         CREATE TABLE IF NOT EXISTS players (
                             id INTEGER PRIMARY KEY,
-                            codename TEXT NOT NULL,
-                            team INTEGER NOT NULL DEFAULT 0
+                            codename TEXT NOT NULL
                         );
                     """)
-                    cur.execute("""
-                        ALTER TABLE players ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
-                    """)
+                    
                 conn.commit()
         except Exception as e:
             messagebox.showerror("DB Error", str(e))
 
     def _db_upsert(self, pid: int, codename: str, team: int = 0):
-        """Insert or update a player row, including team (0=red, 1=green)."""
         with psycopg2.connect(**self.pg_config) as conn:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM players WHERE id = %s;", (pid,))
                 cur.execute(
-                    "INSERT INTO players (id, codename, team) VALUES (%s, %s, %s);",
-                    (pid, codename, team)
+                    "INSERT INTO players (id, codename) VALUES (%s, %s);",
+                    (pid, codename)
                 )
             conn.commit()
 

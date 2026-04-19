@@ -64,7 +64,7 @@ class PlayActionDisplay:
 
         # Window
         self.root = tk.Toplevel(parent)
-        self.root.title("PHOTON – Play Action")
+        self.root.title("PHOTON")
         self.root.configure(bg=BG)
         self.root.attributes("-fullscreen", True)
 

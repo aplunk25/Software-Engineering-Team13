@@ -8,6 +8,7 @@ Also polls PostgreSQL for player codenames.
 
 import tkinter as tk
 from tkinter import font as tkfont
+from PIL import Image, ImageTk
 import socket
 import threading
 import queue
@@ -25,6 +26,7 @@ BUFFER_SIZE = 1024
 GAME_DURATION_SECONDS = 360   # 6-minute game
 HIT_SCORE = 10    # points per hit
 BASE_SCORE = 0
+BASE_IDS = {"53", "43"}  # 43 = red base, 53 = green base
 
 
 BG = "#0a0a12"
@@ -45,8 +47,6 @@ class PlayActionDisplay:
 
     def __init__(self, parent, pg_config: dict, game_seconds: int = GAME_DURATION_SECONDS):
         self.pg_config = dict(pg_config)
-        # self.pg_config.setdefault("host", "localhost")
-        # self.pg_config.setdefault("port", 5432)
 
         # State
         # players[team_idx] = { equipment_id: {"codename": str, "score": int, "hits": int} }
@@ -58,6 +58,7 @@ class PlayActionDisplay:
         self.running = True
         self.hit_feed: list[str] = []   # recent hit messages
         self.MAX_FEED = 8
+        self.base_capturers: set = set()  # tracks player IDs who hit base
 
         self._event_queue: queue.Queue = queue.Queue()
 
@@ -68,6 +69,14 @@ class PlayActionDisplay:
         self.root.attributes("-fullscreen", True)
 
         self._build_fonts()
+
+        # Load base icon
+        try:
+            img = Image.open("baseicon.jpg").resize((16, 16), Image.LANCZOS)
+            self.base_icon = ImageTk.PhotoImage(img)
+        except Exception:
+            self.base_icon = None
+
         self._build_ui()
 
         # Background threads
@@ -148,7 +157,6 @@ class PlayActionDisplay:
         """Parse a hit packet and update scores."""
         if ":" not in msg:
             return   # not a hit packet
-            print(f"[PlayAction]Received from UDP the message: " + msg)
         parts = msg.split(":")
         if len(parts) != 2:
             return
@@ -156,12 +164,27 @@ class PlayActionDisplay:
         shooter_id, target_id = parts[0].strip(), parts[1].strip()
 
         shooter_team = self._get_team_of(shooter_id)
+
+        if shooter_team is None:
+            return
+
+        # Check if target is a base
+        if target_id in BASE_IDS:
+            self.base_capturers.add(shooter_id)
+            self.team_scores[shooter_team] += 100  # bonus points for hitting base
+            shooter_name = self._get_codename(shooter_id)
+            self.hit_feed.insert(0, (shooter_name, "BASE", TEAM_COLORS[shooter_team]))
+            if len(self.hit_feed) > self.MAX_FEED:
+                self.hit_feed.pop()
+            self._event_queue.put("refresh")
+            return
+
         target_team = self._get_team_of(target_id)
 
-        if shooter_team is None or target_team is None:
+        if target_team is None:
             return
         if shooter_team == target_team:
-            return   # friendly fire – ignore (or penalise if desired)
+            return   # friendly fire – ignore
 
         # Award points
         self.players[shooter_team][shooter_id]["score"] += HIT_SCORE
@@ -254,7 +277,6 @@ class PlayActionDisplay:
             score_lbl = tk.Label(f, text="0",
                                  font=self.font_score, bg=col, fg=WHITE)
             score_lbl.pack()
-            # keep reference so we can update
             if team_idx == 0:
                 self.red_score_label = score_lbl
             else:
@@ -292,7 +314,7 @@ class PlayActionDisplay:
         self.green_board_frame.pack(side=tk.LEFT, fill=tk.BOTH,
                                     expand=True, padx=(4, 0))
 
-        # ESC or F3 → close play action and return to player entry
+        # ESC or F5 → close play action and return to player entry
         self.root.bind("<Escape>", lambda e: self._end_game())
         self.root.bind("<F5>", lambda e: self._end_game())
 
@@ -367,6 +389,12 @@ class PlayActionDisplay:
             tk.Label(row, text=data["codename"][:14],
                      width=16, font=self.font_player,
                      bg=PANEL_BG, fg=fg_color, anchor=tk.W).pack(side=tk.LEFT)
+
+            # Show base icon if this player has hit base
+            if pid in self.base_capturers and self.base_icon:
+                tk.Label(row, image=self.base_icon,
+                         bg=PANEL_BG).pack(side=tk.LEFT)
+
             tk.Label(row, text=str(data["score"]),
                      width=7, font=self.font_player,
                      bg=PANEL_BG, fg=fg_color).pack(side=tk.LEFT)
@@ -378,10 +406,16 @@ class PlayActionDisplay:
         for i, lbl in enumerate(self.feed_labels):
             if i < len(self.hit_feed):
                 shooter, target, color = self.hit_feed[i]
-                lbl.configure(
-                    text=f"  {shooter} → tagged → {target}",
-                    fg=color
-                )
+                if target == "BASE":
+                    lbl.configure(
+                        text=f"  {shooter} → hit → BASE 🏠",
+                        fg=color
+                    )
+                else:
+                    lbl.configure(
+                        text=f"  {shooter} → tagged → {target}",
+                        fg=color
+                    )
             else:
                 lbl.configure(text="", fg=GREY)
 

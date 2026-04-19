@@ -432,10 +432,6 @@ class PlayActionDisplay:
                      width=16, font=self.font_player,
                      bg=PANEL_BG, fg=fg_color, anchor=tk.W).pack(side=tk.LEFT)
 
-            # Show base icon if this player has hit base
-            if pid in self.base_capturers and self.base_icon:
-                tk.Label(row, image=self.base_icon,
-                         bg=PANEL_BG).pack(side=tk.LEFT)
 
             tk.Label(row, text=str(data["score"]),
                      width=7, font=self.font_player,

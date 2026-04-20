@@ -52,7 +52,7 @@ class PlayActionDisplay:
         # State
         # players[team_idx] = { equipment_id: {"codename": str, "score": int, "hits": int} }
         self.players: list[dict] = [{}, {}]
-        # self._load_players_from_db()
+        self._load_players_from_db()
 
         self.team_scores = [0, 0]
         self.time_left = game_seconds

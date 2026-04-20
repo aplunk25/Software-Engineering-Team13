@@ -97,13 +97,9 @@ class PlayActionDisplay:
             with open("hardware_team.json", "r") as f:
                 hardware_team = json.load(f)  # e.g. {"1": "RED", "2": "GREEN"}
 
-            entered_ids = [int(pid) for pid in hardware_team.keys() if str(pid).isdigit()]
-            if not entered_ids:
-                return
-
             with psycopg2.connect(**self.pg_config) as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT id, codename FROM players WHERE id = ANY(%s) ORDER BY id;", entered_ids)
+                    cur.execute("SELECT id, codename FROM players ORDER BY id;")
                     rows = cur.fetchall()
 
             for pid, codename in rows:

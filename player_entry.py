@@ -473,8 +473,8 @@ class EntryTerminal:
         # Start countdown; when it finishes, launch the Play Action display
         def _after_countdown():
             # Close player entry screen
-            # `self.root.destroy()`
-            launch_play_action(self.root, self.pg_config)
+            self.root.destroy()
+            launch_play_action(self.root, self.pg_config, players)
 
         CountdownTimer(self.root, on_close=_after_countdown,
                        image_path="countdown_images", seconds=30)
